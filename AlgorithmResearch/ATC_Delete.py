@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 def reshape_to_square(array):
-    matrix_size = int(np.floor(np.sqrt(len(random_array))))  # 取平方根的整数部分
+    matrix_size = int(np.floor(np.sqrt(len(array))))
     matrix = random_array[:matrix_size ** 2].reshape(matrix_size, matrix_size)
     return matrix
 
