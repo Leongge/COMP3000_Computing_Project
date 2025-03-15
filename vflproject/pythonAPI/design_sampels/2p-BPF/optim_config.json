@@ -1,0 +1,186 @@
+{
+  "Variables": [
+    {
+      "Name": "c1",
+      "Value": 1.5,
+      "Unit": "",
+      "Imaginary": false,
+      "Min": 1.0,
+      "Max": 2.0
+    },
+    {
+      "Name": "l1",
+      "Value": 63.0,
+      "Unit": "",
+      "Imaginary": false,
+      "Min": 63.0,
+      "Max": 64.0
+    },
+    {
+      "Name": "c2",
+      "Value": 17.0,
+      "Unit": "",
+      "Imaginary": false,
+      "Min": 16.0,
+      "Max": 18.0
+    },
+    {
+      "Name": "l2",
+      "Value": 5.0,
+      "Unit": "",
+      "Imaginary": false,
+      "Min": 4.0,
+      "Max": 7.0
+    }
+  ],
+  "Goals": [
+    {
+      "Name": "g0",
+      "Response": "S-Parameter",
+      "Series": "S11",
+      "Condition": "<=",
+      "GoalValue": -9.5,
+      "CurveXValues": [],
+      "CurveYValues": [],
+      "CurveMapFilePath": "",
+      "GoalType": null,
+      "Weight": 1,
+      "Min": 400000000.0,
+      "Max": 600000000.0,
+      "IsCurveMappingGoal": false
+    },
+    {
+      "Name": "g1",
+      "Response": "S-Parameter",
+      "Series": "S21",
+      "Condition": "<=",
+      "GoalValue": -10.0,
+      "CurveXValues": [],
+      "CurveYValues": [],
+      "CurveMapFilePath": "",
+      "GoalType": null,
+      "Weight": 1,
+      "Min": 200000000.0,
+      "Max": 361000000.0,
+      "IsCurveMappingGoal": false
+    },
+    {
+      "Name": "g2",
+      "Response": "S-Parameter",
+      "Series": "S21",
+      "Condition": "<=",
+      "GoalValue": -10.0,
+      "CurveXValues": [],
+      "CurveYValues": [],
+      "CurveMapFilePath": "",
+      "GoalType": null,
+      "Weight": 1,
+      "Min": 663000000.0,
+      "Max": 800000000.0,
+      "IsCurveMappingGoal": false
+    }
+  ],
+  "Optimizer": {
+    "Evaluations": 1000,
+    "Tolerance": 0,
+    "Surrogate": false,
+    "Multiprocessing": true,
+    "IsMultiProcessingEnabled": true,
+    "HasDoe": false,
+    "Cores": 8,
+    "ModelNet": 32
+  },
+  "AppEnvironment": {
+    "env_name": "EDSHF",
+    "app_name": "Filpal EDS HF",
+    "reg_name": "Filpal EDS HF 2.0",
+    "app_main_dir": "C:\\Program Files (x86)\\Filpal\\EDS HF",
+    "app_version": null,
+    "process_name": "HF.exe",
+    "ifuncs_exec": "PythonSubprocess",
+    "file_extension": [
+      ".fpx"
+    ],
+    "exec_path": "C:\\Users\\alven\\Desktop\\Aiora\\dev\\aiora-ui\\Aiora\\bin\\Debug\\net472\\Aiora.Engine/common/python39/python.exe",
+    "is_close_design_enabled": false,
+    "is_quit_env_enabled": false
+  },
+  "Design": {
+    "project": {
+      "2p-BPF": {
+        "ProjectPath": "C:\\Users\\alven\\Desktop\\Aiora\\Aiora sample\\EDS HF\\2p-BPF",
+        "Designs": [],
+        "ActiveDesign": "2p-BPF"
+      }
+    },
+    "design_main_dir": "C:\\Users\\alven\\Desktop\\Aiora\\Aiora sample\\EDS HF\\2p-BPF",
+    "design_name": "2p-BPF",
+    "design_path": "C:\\Users\\alven\\Desktop\\Aiora\\Aiora sample\\EDS HF\\2p-BPF\\2p-BPF.fpx",
+    "active_project": "2p-BPF",
+    "active_design": "2p-BPF",
+    "file_extension": ".fpx",
+    "simulation": {
+      "n_port": 2,
+      "types": [
+        "SParameter",
+        "RadiationPattern2D",
+        "Standard"
+      ],
+      "active_type": null,
+      "project": {
+        "designs": null,
+        "active_design": null
+      },
+      "simulation_result": {
+        "template": {
+          "Response1": {
+            "Name": "S-Parameter",
+            "XLabel": "Frequency",
+            "YLabel": "S",
+            "XUnit": "Hz",
+            "Type": "SParameter",
+            "Series": {
+              "Series1": {
+                "Name": "S11",
+                "DataYUnit": "",
+                "DataYFunc": "dB"
+              },
+              "Series2": {
+                "Name": "S12",
+                "DataYUnit": "",
+                "DataYFunc": "dB"
+              },
+              "Series3": {
+                "Name": "S21",
+                "DataYUnit": "",
+                "DataYFunc": "dB"
+              },
+              "Series4": {
+                "Name": "S22",
+                "DataYUnit": "",
+                "DataYFunc": "dB"
+              }
+            }
+          }
+        },
+        "query_data_map": {},
+        "response_series_map": {
+          "Response": {
+            "S-Parameter": "Response1"
+          },
+          "Series": {
+            "S11": "Series1",
+            "S12": "Series2",
+            "S21": "Series3",
+            "S22": "Series4"
+          }
+        }
+      },
+      "preset": {},
+      "extras": null
+    },
+    "optimizer_main_dir": "C:\\Users\\alven\\Desktop\\Aiora\\Aiora sample\\EDS HF\\2p-BPF\\2p-BPF.optimizer"
+  },
+  "EnvironmentID": "optimenv-v1",
+  "OptimizerMode": "inference"
+}

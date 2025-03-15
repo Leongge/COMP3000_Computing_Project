@@ -1,0 +1,5 @@
+1) change main.py header import
+2) delete launch.pyd
+3) set the fpx file path
+4) move out the definitions.xml file to same path of main.py
+5) replace the utils.pyd and HFAPI.pyd

@@ -1,0 +1,69 @@
+Metadata-Version: 2.1
+Name: hfapi
+Version: 0.1b0
+Summary: HackForums API v2 Integration
+Home-page: https://github.com/GoodiesHQ/hfapi/
+Author: Goodies <goodies@protonmail.com>
+Author-email: goodies@protonmail.com
+License: UNKNOWN
+Platform: UNKNOWN
+Classifier: License :: OSI Approved :: GNU Affero General Public License v3
+Classifier: Topic :: Internet :: WWW/HTTP :: Session
+Classifier: Topic :: Security
+Requires-Dist: requests
+Requires-Dist: aiohttp
+Requires-Dist: pydantic
+
+Unofficial HackForums API v2 Integration in Python 3
+====================================================
+
+Purpose
+-------
+
+Other public Python implementations of the HackForums API have shown to
+be immature or varying levels of incomplete. The goal of this project is
+to provide a fully usable Python API for Hackforums available through
+``pip``. **hfapi** features include: - Read/Write profile user profile
+information - Easy and intuitive integration with Python network
+applications - Synchronous (requests) and Asynchronous (aiohttp)
+implementations - All API objects are defined with Pydantic
+
+How-To: Install
+---------------
+
+Installation is easy!
+
+::
+
+   python3 -m pip install -U hfapi
+
+How-To Use
+----------
+
+The synchronous and asynchronous API implementations are identical in
+functionality and usage with the addition of ``await`` syntax in the
+asynchronous version.
+
+::
+
+   # use "HFApp" and "HFClient" for synchronous
+   from hfapi import HFAppAsync, HFClientAsync
+
+   app = """ EXAMPLE WEB SERVER HERE """
+
+   hf = HFAppAsync(
+       client_id="[CLIENT_ID]",
+       secret_key="[SECRET_KEY]",
+       redirect_uri="https://example.com/authorize",
+   )
+
+   # Hackforums will submit a GET request with "code" as a parameter
+   @app.get("/authorize")
+   async def authorize(code: str):
+       # use the `hf.authorize` method to create a client session
+       client = await hf.authorize(code)
+       me = await client.me(all=True)  # collect all (possible) data from current user
+       return me.dict()
+
+
+
