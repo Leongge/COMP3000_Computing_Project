@@ -74,7 +74,7 @@ matrix2, X2, Y2 = reshape_to_10x10_then_normalize(data2)
 fig, axs = plt.subplots(1, 2, figsize=(14, 5))
 
 # Plot first contour heatmap
-contour1 = axs[0].contourf(X1, Y1, matrix1, cmap='jet', levels=20)
+contour1 = axs[0].contourf(X1, Y1, matrix1, cmap='jet', levels=np.linspace(0, 1, 20))
 contour_lines1 = axs[0].contour(X1, Y1, matrix1, colors='black', linewidths=0.8)
 fig.colorbar(contour1, ax=axs[0], label="Normalized Value")
 axs[0].clabel(contour_lines1, inline=True, fontsize=8)
@@ -84,7 +84,7 @@ axs[0].set_ylabel("Y-Axis")
 axs[0].grid(True, linestyle='--', alpha=0.5)
 
 # Plot second contour heatmap
-contour2 = axs[1].contourf(X2, Y2, matrix2, cmap='jet', levels=20)
+contour2 = axs[1].contourf(X2, Y2, matrix2, cmap='jet', levels=np.linspace(0, 1, 20))
 contour_lines2 = axs[1].contour(X2, Y2, matrix2, colors='black', linewidths=0.8)
 fig.colorbar(contour2, ax=axs[1], label="Normalized Value")
 axs[1].clabel(contour_lines2, inline=True, fontsize=8)

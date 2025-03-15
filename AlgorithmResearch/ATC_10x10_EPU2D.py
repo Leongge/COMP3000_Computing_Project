@@ -70,7 +70,7 @@ matrix1, X1, Y1 = reshape_to_10x10(data)
 # Plot contour heatmap
 fig, ax = plt.subplots(figsize=(7, 5))
 
-contour1 = ax.contourf(X1, Y1, matrix1, cmap='jet', levels=20)
+contour1 = ax.contourf(X1, Y1, matrix1, cmap='jet', levels=np.linspace(0, 1, 20))
 contour_lines1 = ax.contour(X1, Y1, matrix1, colors='black', linewidths=0.8)
 fig.colorbar(contour1, ax=ax, label="Normalized Value")
 ax.clabel(contour_lines1, inline=True, fontsize=8)
