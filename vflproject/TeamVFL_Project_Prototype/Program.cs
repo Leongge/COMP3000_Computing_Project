@@ -16,7 +16,7 @@ namespace TeamVFL_Project_Prototype
         {
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new contour());
+            Application.Run(new First());
         }
     }
 }

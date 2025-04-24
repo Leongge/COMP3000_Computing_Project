@@ -19,6 +19,7 @@ using OxyPlot.Axes;
 using OxyPlot.Annotations;
 using System.Runtime.Remoting.Messaging;
 using System.Reflection;
+using OxyPlot.Wpf;
 
 
 namespace TeamVFL_Project_Prototype
@@ -41,6 +42,7 @@ namespace TeamVFL_Project_Prototype
         public Home()
         {
             InitializeComponent();
+            contourPlot.Model = CreatePlotModel();
             // Define paths
             string basePath = Path.Combine(Directory.GetCurrentDirectory());
             string hflibPath = Path.Combine(Directory.GetCurrentDirectory(), @"hflib");
@@ -334,8 +336,6 @@ namespace TeamVFL_Project_Prototype
 
         private void ShowGraph_Click(object sender, EventArgs e)
         {
-
-
             OpenFileDialog openFileDialog = new OpenFileDialog();
             openFileDialog.Title = "Select File";
             openFileDialog.Filter = "FPX Files (*.fpx)|*.fpx";
@@ -639,9 +639,11 @@ namespace TeamVFL_Project_Prototype
                         string arguments = $"{c1} {l1} {c2} {l2} {c3} {l3} {c1_O_min} {c1_O_max} {l1_O_min} {l1_O_max} {c2_O_min} {c2_O_max} {l2_O_min} {l2_O_max} {c3_O_min} {c3_O_max} {l3_O_min} {l3_O_max}" +
                             $" {g0_s} {g1_s} {g2_s} {g0_v} {g1_v} {g2_v} {g0_mi} {g0_ma} {g1_mi} {g1_ma} {g2_mi} {g2_ma}";
 
+                        string pythonCommand = $"\"{pythonFilePath}\" {arguments}";
+
                         Task.Run(() =>
                         {
-                            string output = ExecutePythonScript(pythonFilePath, arguments);
+                            string output = ExecutePythonScript(pythonCommand, arguments);
                             if (Optimize_output.InvokeRequired)
                             {
                                 Optimize_output.Invoke(new Action(() => Optimize_output.AppendText(output)));
@@ -683,9 +685,11 @@ namespace TeamVFL_Project_Prototype
         {
             string currentFilePath = Assembly.GetExecutingAssembly().Location;
             Console.WriteLine("Current File Path: " + currentFilePath);
+
             DirectoryInfo currentDirectory = new DirectoryInfo(Path.GetDirectoryName(currentFilePath));
             DirectoryInfo projectDirectory = currentDirectory.Parent.Parent.Parent.Parent;
             Console.WriteLine("Project Directory Path: " + projectDirectory.FullName);
+
             string relativePath = @"pythonAPI\vfl_marl_version1.0\update_graph.py";
             string updateGraphScriptPath = Path.Combine(projectDirectory.FullName, relativePath);
 
@@ -700,8 +704,10 @@ namespace TeamVFL_Project_Prototype
                     parametersArray[i] = parametersArray[i].Trim();
                 }
                 // Construct the arguments string with individual parameters
+                string pythonPath = Path.Combine(projectDirectory.FullName, @"TeamVFL_Project_Prototype\bin\x64\Release\common\python39\python.exe");
+                string scriptPath = $"\"{updateGraphScriptPath}\"";
                 string arguments = $"{parametersArray[0]} {parametersArray[1]} {parametersArray[2]} {parametersArray[3]} {parametersArray[4]} {parametersArray[5]}";
-                PyObject output = ExecutePythonScriptObject(updateGraphScriptPath, arguments);
+                PyObject output = ExecutePythonScriptObject(scriptPath, arguments);
                 Console.WriteLine(output.ToString());
                 cleanedJson = output.ToString().Replace("None", "null").Replace("True", "true"); ;
                 Console.WriteLine(cleanedJson);
@@ -1160,6 +1166,78 @@ namespace TeamVFL_Project_Prototype
                 }
 
             }
+        }
+
+        private PlotModel CreatePlotModel()
+        {
+            var model = new PlotModel { Title = "Contour Heatmap" };
+
+            int rows = 10, cols = 10;
+            double[,] data = GenerateMatrix();
+
+            var heatMap = new HeatMapSeries
+            {
+                X0 = 0,
+                X1 = cols - 1, 
+                Y0 = 0,
+                Y1 = rows - 1, 
+                Interpolate = true,    
+                Data = data,
+                ColorAxisKey = "ColorAxis"
+            };
+
+            var contourSeries = new ContourSeries
+            {
+                Data = data,
+                ColumnCoordinates = Enumerable.Range(0, cols).Select(i => (double)i).ToArray(),
+                RowCoordinates = Enumerable.Range(0, rows).Select(i => (double)i).ToArray(),
+                ContourLevels = new double[] { 0.2, 0.4, 0.6, 0.8 }, 
+                LabelBackground = OxyColors.White
+            };
+
+            var colorAxis = new LinearColorAxis
+            {
+                Position = AxisPosition.Right,
+                Palette = OxyPalettes.Jet(256),
+                Key = "ColorAxis"
+            };
+
+            model.Axes.Add(new LinearAxis { Position = AxisPosition.Bottom, Minimum = 0, Maximum = cols - 1 });
+            model.Axes.Add(new LinearAxis { Position = AxisPosition.Left, Minimum = 0, Maximum = rows - 1 });
+            model.Axes.Add(colorAxis);
+
+            model.Series.Add(heatMap);
+            model.Series.Add(contourSeries);
+
+            return model;
+        }
+
+        private double[,] GenerateMatrix()
+        {
+            return new double[,] {
+
+                //{0.05759649, 0.05759671, 0.05759658, 0.05759524, 0.05759862, 0.05759196,  0.05760199, 0.05759326, 0.05759938, 0.05759649 },
+                //{ 0.05758223, 0.05758567, 0.05758377, 0.05758258, 0.05759403, 0.0575807,  0.05761298, 0.05759568, 0.05762903, 0.05764135 },
+                //{ 0.05767572, 0.05767206, 0.05766544, 0.05765446, 0.05767324, 0.05758207,  0.05765799, 0.05747975, 0.05744055, 0.05730773 },
+                //{ 0.05725531, 0.05732167, 0.05723584, 0.05729524, 0.05741551, 0.0572723,  0.05783385, 0.05765588, 0.05852807, 0.05886565 },
+                //{ 0.05886676, 0.05880549, 0.0586603,  0.05902423, 0.05872258, 0.05774041,  0.05889533, 0.05585375, 0.05430643, 0.05219991 },
+                //{ 0.05341982, 0.05418341, 0.05314872, 0.05416326, 0.0524987,  0.05245804,  0.06077991, 0.05677398, 0.07228692, 0.07594715 },
+                //{ 0.06967807, 0.06966319, 0.067084,   0.07140625, 0.07138941, 0.07517331,  0.07384898, 0.03153137, 0.0119277,  0},
+                //{ 0.02813599, 0.0350521,  0.02582001, 0.02389406, 0.02298216, 0.0263612,  0.00162904, 0.04155859, 0.20621108, 0.21373057 },
+                //{ 0.10968703, 0.11542832, 0.10955932, 0.11153347, 0.10801819, 0.12150871,  0.06769625, 0.23320256, 1, 0.96191225 },
+                //{ 0.90847521, 0.90966631, 0.90744797, 0.90924543, 0.90741041, 0.91111985,  0.90872098, 0.89670417, 0.92448758, 0.90847521 }
+
+                {0.08465315, 0.08465276, 0.08465377, 0.08465077, 0.08465556, 0.08465066,  0.08465546, 0.08465349, 0.08465186, 0.08465315},
+                {0.08465374, 0.0846534,  0.08466005, 0.08465425, 0.08467467, 0.08466138,  0.08467941, 0.08468097, 0.08467168, 0.08467496},
+                {0.08465172, 0.0846439,  0.08464989, 0.08459279, 0.08463351, 0.08452134,  0.08456866, 0.08448719, 0.08450266, 0.08454897},
+                {0.08465871, 0.08465595, 0.08473893, 0.08467657, 0.0850656,  0.08478976,  0.08528579, 0.08560438, 0.08511048, 0.08508704},
+                { 0.08464587, 0.08460697, 0.0846498,  0.08399776, 0.08456293, 0.08221102,  0.08288696, 0.08135493, 0.08221906, 0.0835073 },
+                {0.08466547, 0.08465189, 0.08497732, 0.08462891, 0.08920269, 0.08571408,  0.0957743,  0.10204302, 0.08903963, 0.08799503},
+                {0.08463957, 0.08455911, 0.08474606, 0.08273391, 0.08589642, 0.05424669,  0.07054346, 0.05748548, 0.06237349, 0.08100299},
+                {0.08465756, 0.0845945, 0.08522269, 0.08287948, 0.09391876, 0.06758336,  0.28315083, 0.3022502,  0.08175555, 0.0849679 }, 
+                {0.08465056, 0.08452164, 0.08550045, 0.08019218, 0.10461889, 0,  0.46520289, 1,         0.02267822, 0.08522878}, 
+                {0.08465315, 0.0845068,  0.0854538,  0.081216,   0.09515982, 0.05219431,  0.11691909, 0.09467228, 0.06207803, 0.08465315 }
+            };
         }
     }
 }

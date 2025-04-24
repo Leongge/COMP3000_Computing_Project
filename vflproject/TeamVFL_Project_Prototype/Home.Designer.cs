@@ -109,6 +109,7 @@
             this.label25 = new System.Windows.Forms.Label();
             this.file_path = new System.Windows.Forms.Label();
             this.Optimize_output = new System.Windows.Forms.RichTextBox();
+            this.contourPlot = new OxyPlot.WindowsForms.PlotView();
             this.groupBox1.SuspendLayout();
             this.groupBox2.SuspendLayout();
             this.groupBox4.SuspendLayout();
@@ -246,11 +247,11 @@
             this.groupBox2.Controls.Add(this.label3);
             this.groupBox2.Controls.Add(this.label2);
             this.groupBox2.Controls.Add(this.groupBox4);
-            this.groupBox2.Location = new System.Drawing.Point(572, 11);
+            this.groupBox2.Location = new System.Drawing.Point(1102, 27);
             this.groupBox2.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.groupBox2.Name = "groupBox2";
             this.groupBox2.Padding = new System.Windows.Forms.Padding(3, 2, 3, 2);
-            this.groupBox2.Size = new System.Drawing.Size(813, 254);
+            this.groupBox2.Size = new System.Drawing.Size(674, 254);
             this.groupBox2.TabIndex = 8;
             this.groupBox2.TabStop = false;
             this.groupBox2.Text = "Design Parameters";
@@ -711,11 +712,11 @@
             this.groupBox3.Controls.Add(this.g1_Min);
             this.groupBox3.Controls.Add(this.g0_Min);
             this.groupBox3.Controls.Add(this.g0_Value);
-            this.groupBox3.Location = new System.Drawing.Point(572, 306);
+            this.groupBox3.Location = new System.Drawing.Point(1102, 322);
             this.groupBox3.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.groupBox3.Name = "groupBox3";
             this.groupBox3.Padding = new System.Windows.Forms.Padding(3, 2, 3, 2);
-            this.groupBox3.Size = new System.Drawing.Size(813, 270);
+            this.groupBox3.Size = new System.Drawing.Size(674, 270);
             this.groupBox3.TabIndex = 9;
             this.groupBox3.TabStop = false;
             this.groupBox3.Text = "Goals Settings";
@@ -983,17 +984,30 @@
             // 
             // Optimize_output
             // 
-            this.Optimize_output.Location = new System.Drawing.Point(68, 640);
+            this.Optimize_output.Location = new System.Drawing.Point(22, 643);
             this.Optimize_output.Name = "Optimize_output";
-            this.Optimize_output.Size = new System.Drawing.Size(1317, 149);
+            this.Optimize_output.Size = new System.Drawing.Size(1754, 198);
             this.Optimize_output.TabIndex = 12;
             this.Optimize_output.Text = "";
+            // 
+            // contourPlot
+            // 
+            this.contourPlot.Location = new System.Drawing.Point(622, 98);
+            this.contourPlot.Name = "contourPlot";
+            this.contourPlot.PanCursor = System.Windows.Forms.Cursors.Hand;
+            this.contourPlot.Size = new System.Drawing.Size(375, 375);
+            this.contourPlot.TabIndex = 13;
+            this.contourPlot.Text = "plotView1";
+            this.contourPlot.ZoomHorizontalCursor = System.Windows.Forms.Cursors.SizeWE;
+            this.contourPlot.ZoomRectangleCursor = System.Windows.Forms.Cursors.SizeNWSE;
+            this.contourPlot.ZoomVerticalCursor = System.Windows.Forms.Cursors.SizeNS;
             // 
             // Home
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(1437, 856);
+            this.ClientSize = new System.Drawing.Size(1810, 870);
+            this.Controls.Add(this.contourPlot);
             this.Controls.Add(this.Optimize_output);
             this.Controls.Add(this.file_path);
             this.Controls.Add(this.label25);
@@ -1104,5 +1118,6 @@
         private System.Windows.Forms.Label file_path;
         private System.Windows.Forms.RichTextBox Optimize_output;
         private System.Windows.Forms.Button btn_optimize;
+        private OxyPlot.WindowsForms.PlotView contourPlot;
     }
 }

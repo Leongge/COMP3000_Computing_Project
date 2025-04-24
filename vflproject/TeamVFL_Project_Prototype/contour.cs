@@ -3,274 +3,868 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
 using System.Drawing;
-using System.Drawing.Imaging;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using Newtonsoft.Json;
+using OxyPlot.Annotations;
+using OxyPlot.Axes;
+using OxyPlot;
+using Python.Runtime;
 using ScottPlot;
-using ScottPlot.Plottable;
-using ScottPlot.WinForms;
-using ScottPlot.Drawing;
-using System.Drawing.Drawing2D;
+using OxyPlot.Series;
+using System.IO;
+using System.Reflection;
+using System.Diagnostics;
 
 namespace TeamVFL_Project_Prototype
 {
-    public partial class contour : Form
+    public partial class Contour : Form
     {
-        private System.Windows.Forms.Timer updateTimer;
-        private double[,] intensities;
-        private int dataPoints = 20;
-        private Random rand = new Random();
-        private Heatmap hm;
+        private PlotModel plotModel;
+        private LineSeries s11Series;
+        private LineSeries s12Series;
+        private LineSeries s21Series;
+        private LineSeries s22Series;
+        private string selectedFilePath;
+        public dynamic PyLauncher;
+        private StringBuilder matrixBuffer = new StringBuilder();
+        private int matrixCount = 0;
+        private bool isCollectingMatrix = false;
+        private const int MATRIX_SIZE = 10;
+        private string cleanedJson;
+        private bool Optimized;
+        private List<double[,]> currentMatrices = new List<double[,]>();
+        private List<OxyPlot.WindowsForms.PlotView> plotViews;
 
-        public contour()
+        public Contour()
         {
             InitializeComponent();
-            InitializePlot();
-            //SetupTimer();
+            InitializePlotViews();
+            string basePath = Path.Combine(Directory.GetCurrentDirectory());
+            string hflibPath = Path.Combine(Directory.GetCurrentDirectory(), @"hflib");
+            string python39 = Path.Combine(Directory.GetCurrentDirectory(), @"common\python39\python39.dll");
+            //string python311 = Path.Combine(Directory.GetCurrentDirectory(), @"common\python311\python311.dll");
+            string modulePath = Path.Combine(Directory.GetCurrentDirectory(), @"common\pythonlib");
+            string modulePath2 = Path.Combine(Directory.GetCurrentDirectory(), @"common\pythonlib2");
+            string envPath = Path.Combine(Directory.GetCurrentDirectory(), @"common\python39");
+            string envPath2 = Path.Combine(Directory.GetCurrentDirectory(), @"common\python311");
+            string oriPath = Environment.GetEnvironmentVariable("PATH")?.TrimEnd(Path.PathSeparator);
+            oriPath = string.IsNullOrEmpty(oriPath) ? envPath : oriPath + Path.PathSeparator + envPath;
+
+            // Set Environment Variables
+            Environment.SetEnvironmentVariable("PATH", oriPath, EnvironmentVariableTarget.Process);
+            Environment.SetEnvironmentVariable("PYTHONNET_PYDLL", python39);
+            Environment.SetEnvironmentVariable("PYTHONPATH", $"{modulePath}{Path.PathSeparator}{basePath}{Path.PathSeparator}{hflibPath}", EnvironmentVariableTarget.Process);
+
+            // Set Environment Variables for python 311
+            //Environment.SetEnvironmentVariable("PATH", oriPath, EnvironmentVariableTarget.Process);
+            //Environment.SetEnvironmentVariable("PYTHONNET_PYDLL", python311);
+            //Environment.SetEnvironmentVariable("PYTHONPATH", $"{modulePath2}{Path.PathSeparator}{basePath}{Path.PathSeparator}{hflibPath}", EnvironmentVariableTarget.Process);
+
+
+            // Initialize Python Engine
+            PythonEngine.PythonPath = PythonEngine.PythonPath + Path.PathSeparator + Environment.GetEnvironmentVariable("PYTHONPATH", EnvironmentVariableTarget.Process);
+            PythonEngine.Initialize();
+
+            // Initialize the launcher, first import launch.pyd, then initialize its class constructor
+            using (Py.GIL())
+            {
+                dynamic launcher = Py.Import("launch");
+                PyLauncher = launcher.HFLaunch();
+            }
+
+            // Set initial checkbox states
+            checkboxS11.Checked = true;
+            checkboxS12.Checked = true;
+
+            checkboxS11.CheckedChanged += CheckboxS11_CheckedChanged;
+            checkboxS12.CheckedChanged += CheckboxS12_CheckedChanged;
+            checkboxS21.CheckedChanged += CheckboxS21_CheckedChanged;
+            checkboxS22.CheckedChanged += CheckboxS22_CheckedChanged;
+
+            selectedFilePath = @"C:\Users\leong\OneDrive\Documents\Peninsula Collegue\Study\Year 3 Sem 2\FYP\FYP_BSSE2309678\vflproject\backend\aiora-metric-vC2\Trainer\EDSHF_designs\2p-EPU2D\2p-EPU2D.fpx";
         }
 
-        private double[,] ApplyGaussianBlur(double[,] data, int kernelSize, double sigma)
+        private LineSeries CreateLineSeries(double[] dataX, double[] dataY, OxyColor color)
         {
-            double[,] blurredData = new double[data.GetLength(0), data.GetLength(1)];
-            double[,] kernel = GenerateGaussianKernel(kernelSize, sigma);
+            var series = new LineSeries { Color = color };
 
-            int offset = kernelSize / 2;
-
-            for (int i = offset; i < data.GetLength(0) - offset; i++)
+            for (int i = 0; i < dataX.Length; i++)
             {
-                for (int j = offset; j < data.GetLength(1) - offset; j++)
+                // Assuming dataX is in frequency (Hz)
+                series.Points.Add(new DataPoint(dataX[i] / 1e9, dataY[i]));
+            }
+
+            return series;
+        }
+
+        private void ToggleSeriesVisibility(LineSeries series, bool isVisible)
+        {
+            if (isVisible && !plotModel.Series.Contains(series))
+            {
+                plotModel.Series.Add(series);
+            }
+            else if (!isVisible && plotModel.Series.Contains(series))
+            {
+                plotModel.Series.Remove(series);
+            }
+
+            plotPanel.Invalidate();
+        }
+
+        private void CheckboxS11_CheckedChanged(object sender, EventArgs e)
+        {
+            if (!string.IsNullOrEmpty(selectedFilePath) && Optimized == false)
+            {
+                ProcessFileAndGenerateChart();
+            }
+            else if (Optimized == true)
+            {
+                ProcessJsonResponse(cleanedJson);
+            }
+        }
+
+        private void CheckboxS12_CheckedChanged(object sender, EventArgs e)
+        {
+            if (!string.IsNullOrEmpty(selectedFilePath) && Optimized == false)
+            {
+                ProcessFileAndGenerateChart();
+            }
+            else if (Optimized == true)
+            {
+                ProcessJsonResponse(cleanedJson);
+            }
+        }
+
+        private void CheckboxS21_CheckedChanged(object sender, EventArgs e)
+        {
+            if (!string.IsNullOrEmpty(selectedFilePath) && Optimized == false)
+            {
+                ProcessFileAndGenerateChart();
+            }
+            else if (Optimized == true)
+            {
+                ProcessJsonResponse(cleanedJson);
+            }
+        }
+
+        private void CheckboxS22_CheckedChanged(object sender, EventArgs e)
+        {
+            if (!string.IsNullOrEmpty(selectedFilePath) && Optimized == false)
+            {
+                ProcessFileAndGenerateChart();
+            }
+            else if (Optimized == true)
+            {
+                ProcessJsonResponse(cleanedJson);
+            }
+        }
+
+        private void ShowGraph_Click(object sender, EventArgs e)
+        {
+            ProcessFileAndGenerateChart();
+        }
+
+        private void ProcessFileAndGenerateChart()
+        {
+            PyObject output = null;
+
+            using (Py.GIL())
+            {
+                output = PyLauncher.load_design(selectedFilePath);
+            }
+            //outputTextBox.Text = output.ToString();
+
+            Console.WriteLine(output.ToString());
+            // Change python json output to dynamic object
+            dynamic jsonResponse = JsonConvert.DeserializeObject(output.ToString());
+
+            // Get S11 Data
+            dynamic s11Data = jsonResponse.SimulationResult.Response1.Series.Series1;
+            double[] s11DataX = s11Data.DataX.ToObject<double[]>();
+            double[] s11DataY = s11Data.DataY.ToObject<double[]>();
+
+            // Get S12 Data
+            dynamic s12Data = jsonResponse.SimulationResult.Response1.Series.Series2;
+            double[] s12DataX = s12Data.DataX.ToObject<double[]>();
+            double[] s12DataY = s12Data.DataY.ToObject<double[]>();
+
+            // Get S21 Data
+            dynamic s21Data = jsonResponse.SimulationResult.Response1.Series.Series3;
+            double[] s21DataX = s21Data.DataX.ToObject<double[]>();
+            double[] s21DataY = s21Data.DataY.ToObject<double[]>();
+
+            // Get S22 Data
+            dynamic s22Data = jsonResponse.SimulationResult.Response1.Series.Series4;
+            double[] s22DataX = s22Data.DataX.ToObject<double[]>();
+            double[] s22DataY = s22Data.DataY.ToObject<double[]>();
+
+
+            // Create OxyPlot chart
+            plotModel = new PlotModel { Title = "S-Parameters" };
+
+            s11Series = CreateLineSeries(s11DataX, s11DataY, OxyColor.FromRgb(0, 0, 255));
+            s12Series = CreateLineSeries(s12DataX, s12DataY, OxyColor.FromRgb(255, 0, 0));
+            s21Series = CreateLineSeries(s21DataX, s21DataY, OxyColor.FromRgb(0, 255, 0));
+            s22Series = CreateLineSeries(s22DataX, s22DataY, OxyColor.FromRgb(255, 255, 0));
+
+            ToggleSeriesVisibility(s11Series, checkboxS11.Checked);
+            ToggleSeriesVisibility(s12Series, checkboxS12.Checked);
+            ToggleSeriesVisibility(s21Series, checkboxS21.Checked);
+            ToggleSeriesVisibility(s22Series, checkboxS22.Checked);
+            plotModel.Axes.Clear();
+            plotModel.Axes.Add(new OxyPlot.Axes.LinearAxis
+            {
+                Position = OxyPlot.Axes.AxisPosition.Bottom,
+                Title = "Frequency",
+                Unit = "GHz",
+                MajorGridlineStyle = OxyPlot.LineStyle.Solid,
+                MinorGridlineStyle = OxyPlot.LineStyle.Dot,
+                Key = "FrequencyAxis"
+            });
+            plotModel.Axes.Add(new OxyPlot.Axes.LinearAxis
+            {
+                Position = AxisPosition.Left,
+                MajorGridlineStyle = OxyPlot.LineStyle.Solid,
+                MinorGridlineStyle = OxyPlot.LineStyle.Dot,
+                Title = "dB"
+            });
+
+            var g0Line = new LineAnnotation
+            {
+                Type = LineAnnotationType.Horizontal,
+                Y = Convert.ToDouble(-18),
+                Color = OxyColor.FromRgb(0, 255, 0),
+                LineStyle = OxyPlot.LineStyle.DashDot
+            };
+            g0Line.MinimumX = Convert.ToDouble(1.429);
+            g0Line.MaximumX = Convert.ToDouble(1.512);
+            plotModel.Annotations.Add(g0Line);
+
+
+            var g0Label = new TextAnnotation
+            {
+                Text = "g0",
+                TextPosition = new DataPoint((g0Line.MinimumX + g0Line.MaximumX) / 2, g0Line.Y),
+                TextVerticalAlignment = OxyPlot.VerticalAlignment.Bottom,
+                TextHorizontalAlignment = OxyPlot.HorizontalAlignment.Center,
+                TextColor = OxyColor.FromRgb(0, 255, 0),
+                StrokeThickness = 0
+            };
+            plotModel.Annotations.Add(g0Label);
+
+
+            var g1Line = new LineAnnotation
+            {
+                Type = LineAnnotationType.Horizontal,
+                Y = Convert.ToDouble(-25),
+                Color = OxyColor.FromRgb(255, 0, 0),
+                LineStyle = OxyPlot.LineStyle.DashDot
+            };
+            g1Line.MinimumX = Convert.ToDouble(1.3);
+            g1Line.MaximumX = Convert.ToDouble(1.42);
+            plotModel.Annotations.Add(g1Line);
+            var g1Label = new TextAnnotation
+            {
+                Text = "g1",
+                TextPosition = new DataPoint((g1Line.MinimumX + g1Line.MaximumX) / 2, g1Line.Y),
+                TextVerticalAlignment = OxyPlot.VerticalAlignment.Bottom,
+                TextHorizontalAlignment = OxyPlot.HorizontalAlignment.Center,
+                TextColor = OxyColor.FromRgb(255, 0, 0),
+                StrokeThickness = 0
+            };
+            plotModel.Annotations.Add(g1Label);
+
+
+            var g2Line = new LineAnnotation
+            {
+                Type = LineAnnotationType.Horizontal,
+                Y = Convert.ToDouble(-25),
+                Color = OxyColor.FromRgb(255, 0, 0),
+                LineStyle = OxyPlot.LineStyle.DashDot
+            };
+            g2Line.MinimumX = Convert.ToDouble(1.525);
+            g2Line.MaximumX = Convert.ToDouble(1.65);
+            plotModel.Annotations.Add(g2Line);
+
+            var g2Label = new TextAnnotation
+            {
+                Text = "g2",
+                TextPosition = new DataPoint((g2Line.MinimumX + g2Line.MaximumX) / 2, g2Line.Y),
+                TextVerticalAlignment = OxyPlot.VerticalAlignment.Bottom,
+                TextHorizontalAlignment = OxyPlot.HorizontalAlignment.Center,
+                TextColor = OxyColor.FromRgb(255, 0, 0),
+                StrokeThickness = 0
+            };
+            plotModel.Annotations.Add(g2Label);
+
+            // Clear previous content in plotPanel
+            plotPanel.Controls.Clear();
+
+            // Create a PlotView to display the plot model
+            var plotView = new OxyPlot.WindowsForms.PlotView
+            {
+                Model = plotModel,
+                Dock = DockStyle.Fill // Dock the plotView to fill the form
+            };
+
+            // Add the PlotView to your form (assuming you have a panel named plotPanel)
+            plotPanel.Controls.Add(plotView);
+        }
+
+        private void InitializePlotViews()
+        {
+            // 假设你已经在表单设计器中创建了9个plotView控件
+            plotViews = new List<OxyPlot.WindowsForms.PlotView>
+            {
+                contour1, contour2, contour3,
+                contour4, contour5, contour6,
+                contour7, contour8, contour9
+            };
+
+            // 初始化每个PlotView的模型
+            foreach (var view in plotViews)
+            {
+                view.Model = new PlotModel { Title = "Waiting for data..." };
+            }
+
+            
+        }
+
+        private void btn_optimize_Click(object sender, EventArgs e)
+        {
+            if (string.IsNullOrEmpty(selectedFilePath))
+            {
+                MessageBox.Show("No Path Selected");
+                return;
+            }
+
+            // 保存当前环境变量
+            string originalPath = Environment.GetEnvironmentVariable("PATH");
+            string originalPythonDll = Environment.GetEnvironmentVariable("PYTHONNET_PYDLL");
+            string originalPythonPath = Environment.GetEnvironmentVariable("PYTHONPATH");
+
+            try
+            {
+                // 设置Python 3.11环境
+                string envPath2 = Path.Combine(Directory.GetCurrentDirectory(), @"common\python311");
+                string python311 = Path.Combine(Directory.GetCurrentDirectory(), @"common\python311\python311.dll");
+                string modulePath2 = Path.Combine(Directory.GetCurrentDirectory(), @"common\pythonlib2");
+                string basePath = Directory.GetCurrentDirectory();
+                string hflibPath = Path.Combine(Directory.GetCurrentDirectory(), @"hflib");
+
+                string oriPath = originalPath?.TrimEnd(Path.PathSeparator);
+                oriPath = string.IsNullOrEmpty(oriPath) ? envPath2 : oriPath + Path.PathSeparator + envPath2;
+
+                Environment.SetEnvironmentVariable("PATH", oriPath, EnvironmentVariableTarget.Process);
+                Environment.SetEnvironmentVariable("PYTHONNET_PYDLL", python311);
+                Environment.SetEnvironmentVariable("PYTHONPATH", $"{modulePath2}{Path.PathSeparator}{basePath}{Path.PathSeparator}{hflibPath}", EnvironmentVariableTarget.Process);
+
+                // 获取Python脚本路径
+                string currentDir = Directory.GetCurrentDirectory();
+                string projectDir = Directory.GetParent(currentDir)?.Parent?.Parent?.Parent?.FullName;
+                if (projectDir == null)
                 {
-                    double sum = 0;
-                    for (int k = -offset; k <= offset; k++)
+                    MessageBox.Show("Cannot determine project directory");
+                    return;
+                }
+
+                string pythonScriptPath = Path.Combine(projectDir, @"backend\aiora-metric-vC2\Trainer\run_model_vC.py");
+                if (!File.Exists(pythonScriptPath))
+                {
+                    MessageBox.Show($"Python script not found at: {pythonScriptPath}");
+                    return;
+                }
+
+                // 运行Python脚本
+                string pythonExePath = Path.Combine(Directory.GetCurrentDirectory(), @"common\python311\python.exe");
+                if (!File.Exists(pythonExePath))
+                {
+                    MessageBox.Show($"Python executable not found at: {pythonExePath}");
+                    return;
+                }
+
+                Optimize_output.Clear();
+
+                ProcessStartInfo startInfo = new ProcessStartInfo
+                {
+                    FileName = pythonExePath,
+                    Arguments = $"\"{pythonScriptPath}\"",  // 确保路径有引号
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    CreateNoWindow = true
+                };
+
+                // 确保Python输出不使用缓冲区
+                startInfo.EnvironmentVariables["PYTHONUNBUFFERED"] = "1";
+
+                Process process = new Process
+                {
+                    StartInfo = startInfo,
+                    EnableRaisingEvents = true
+                };
+
+                // 设置异步事件处理器来实时读取输出
+                process.OutputDataReceived += (s, args) =>
+                {
+                    if (args.Data != null)
                     {
-                        for (int l = -offset; l <= offset; l++)
+                        UpdateOutputTextBox(args.Data);
+                    }
+                };
+
+                process.ErrorDataReceived += (s, args) =>
+                {
+                    if (args.Data != null)
+                    {
+                        UpdateOutputTextBox($"ERROR: {args.Data}");
+                    }
+                };
+
+                process.Start();
+
+                // 开始异步读取
+                process.BeginOutputReadLine();
+                process.BeginErrorReadLine();
+
+                // 在后台线程等待进程完成
+                Task.Run(() =>
+                {
+                    process.WaitForExit();
+                    UpdateOutputTextBox($"Process completed with exit code: {process.ExitCode}");
+
+                    // 恢复原始环境变量
+                    Environment.SetEnvironmentVariable("PATH", originalPath);
+                    Environment.SetEnvironmentVariable("PYTHONNET_PYDLL", originalPythonDll);
+                    Environment.SetEnvironmentVariable("PYTHONPATH", originalPythonPath);
+
+                    this.Invoke(new Action(() =>
+                    {
+                        UpdateGraph();
+                    }));
+                });
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error: {ex.Message}\n\nStack Trace: {ex.StackTrace}");
+
+                // 确保在异常情况下也恢复环境变量
+                Environment.SetEnvironmentVariable("PATH", originalPath);
+                Environment.SetEnvironmentVariable("PYTHONNET_PYDLL", originalPythonDll);
+                Environment.SetEnvironmentVariable("PYTHONPATH", originalPythonPath);
+            }
+        }
+
+        // 辅助方法：线程安全地更新输出文本框
+        private void UpdateOutputTextBox(string text)
+        {
+            if (Optimize_output.InvokeRequired)
+            {
+                Optimize_output.Invoke(new Action(() =>
+                {
+                    ProcessOutputLine(text);
+                }));
+            }
+            else
+            {
+                ProcessOutputLine(text);
+            }
+        }
+
+        private void ProcessOutputLine(string line)
+        {
+            // 添加到输出文本框
+            Optimize_output.AppendText(line + Environment.NewLine);
+
+            // 自动滚动到底部
+            Optimize_output.SelectionStart = Optimize_output.Text.Length;
+            Optimize_output.ScrollToCaret();
+
+            // 检查是否是新的观测结果开始
+            if (line.Contains("Best Cost:") && line.Contains("Actions:"))
+            {
+                // 如果有收集的矩阵，先处理它们
+                if (currentMatrices.Count > 0)
+                {
+                    UpdateContourPlots(currentMatrices);
+                }
+
+                // 重置矩阵收集状态
+                currentMatrices.Clear();
+                isCollectingMatrix = false;
+                matrixBuffer.Clear();
+
+                // 显示新的观测信息
+                UpdateObservationInfo(line);
+            }
+
+            // 检查是否是矩阵数据的开始
+            if (line.Trim().StartsWith("[") && line.Contains(" ") && !isCollectingMatrix)
+            {
+                isCollectingMatrix = true;
+                matrixBuffer.Clear();
+                matrixBuffer.Append(line);
+            }
+            // 如果正在收集矩阵数据，继续追加
+            else if (isCollectingMatrix)
+            {
+                matrixBuffer.Append(line);
+
+                // 检查是否到达矩阵结束
+                if (line.Trim().EndsWith("]"))
+                {
+                    // 处理完整的矩阵
+                    double[,] matrix = ParseMatrix(matrixBuffer.ToString());
+                    if (matrix != null)
+                    {
+                        currentMatrices.Add(matrix);
+
+                        // 如果已经收集到了足够的矩阵，更新轮廓图
+                        if (currentMatrices.Count == 9)
                         {
-                            sum += data[i + k, j + l] * kernel[offset + k, offset + l];
+                            UpdateContourPlots(currentMatrices);
+                            currentMatrices.Clear();
                         }
                     }
-                    blurredData[i, j] = sum;
+
+                    // 重置矩阵收集状态
+                    isCollectingMatrix = false;
+                    matrixBuffer.Clear();
                 }
             }
-
-            return blurredData;
         }
 
-        private double[,] GenerateGaussianKernel(int size, double sigma)
+        private double[,] ParseMatrix(string matrixText)
         {
-            double[,] kernel = new double[size, size];
-            double mean = size / 2;
-            double sum = 0.0;
-
-            for (int x = 0; x < size; x++)
+            try
             {
-                for (int y = 0; y < size; y++)
+                // 移除所有括号和多余空格
+                string cleanText = matrixText.Replace("[", "").Replace("]", "").Trim();
+
+                // 按空格分割所有数字
+                string[] values = cleanText.Split(new[] { ' ', '\n', '\r', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+
+                // 创建10x10矩阵
+                double[,] matrix = new double[MATRIX_SIZE, MATRIX_SIZE];
+
+                // 填充矩阵
+                for (int i = 0; i < values.Length && i < MATRIX_SIZE * MATRIX_SIZE; i++)
                 {
-                    kernel[x, y] = Math.Exp(-0.5 * (Math.Pow((x - mean) / sigma, 2.0) + Math.Pow((y - mean) / sigma, 2.0)))
-                                   / (2 * Math.PI * sigma * sigma);
-                    sum += kernel[x, y];
-                }
-            }
+                    int row = i / MATRIX_SIZE;
+                    int col = i % MATRIX_SIZE;
 
-            for (int x = 0; x < size; x++)
-            {
-                for (int y = 0; y < size; y++)
-                {
-                    kernel[x, y] /= sum;
-                }
-            }
-
-            return kernel;
-        }
-
-
-        private void InitializePlot()
-        {
-            // 初始化数据
-            intensities = new double[dataPoints, dataPoints];
-            
-
-            Random rand = new Random();
-
-            for (int i = 0; i < dataPoints; i++)
-            {
-                for (int j = 0; j < dataPoints; j++)
-                {
-                    double noise = PerlinNoise(i * 0.1, j * 0.1);
-                    double randomFactor = rand.NextDouble() * 0.5;
-
-                    intensities[i, j] = noise * 0.5 + randomFactor;
-                }
-            }
-
-            intensities = ApplyGaussianBlur(intensities, 5, 1.0);
-
-            // 配置热图
-            //var hm = formsPlot2.Plot.AddHeatmap(intensities);
-            hm = formsPlot2.Plot.AddHeatmap(intensities, colormap: CreateCustomColormap());
-            GenerateColorbar();
-
-
-            // 设置颜色映射
-            //hm.Update(intensities, ScottPlot.Drawing.Colormap.Turbo);
-
-            formsPlot2.Plot.Legend();
-
-            // 配置坐标轴
-            formsPlot2.Plot.XLabel("X Axis");
-            formsPlot2.Plot.YLabel("Y Axis");
-            formsPlot2.Plot.Title("Dynamic Contour Heatmap");
-
-            // 刷新显示
-            formsPlot2.Refresh();
-        }
-
-        private double PerlinNoise(double x, double y)
-        {
-            return Math.Sin(x * 3.14) * Math.Cos(y * 3.14);
-        }
-
-
-        private Colormap CreateCustomColormap()
-        {
-            // 关键颜色点
-            Color[] colors = new Color[]
-            {
-                Color.Red,      // 红色
-                Color.Orange,   // 橙色
-                Color.Yellow,   // 黄色
-                Color.Green,    // 绿色
-                Color.Blue // 浅蓝
-            };
-
-            // 生成插值渐变
-            int steps = 1024; // 颜色渐变步长
-            Color[] smoothColors = GenerateSmoothGradient(colors, steps);
-
-            // 创建 ScottPlot Colormap
-            return new Colormap(smoothColors);
-        }
-
-        private Color[] GenerateSmoothGradient(Color[] keyColors, int steps)
-        {
-            List<Color> smoothColors = new List<Color>();
-
-            for (int i = 0; i < keyColors.Length - 1; i++)
-            {
-                Color startColor = keyColors[i];
-                Color endColor = keyColors[i + 1];
-
-                for (int j = 0; j < steps / (keyColors.Length - 1); j++)
-                {
-                    float t = j / (float)(steps / (keyColors.Length - 1) - 1); // 归一化 [0,1]
-                    Color blendedColor = Color.FromArgb(
-                        (int)(startColor.R + (endColor.R - startColor.R) * t),
-                        (int)(startColor.G + (endColor.G - startColor.G) * t),
-                        (int)(startColor.B + (endColor.B - startColor.B) * t)
-                    );
-                    smoothColors.Add(blendedColor);
-                }
-            }
-
-            return smoothColors.ToArray();
-        }
-
-
-
-        private void GenerateColorbar()
-        {
-            int width = 50;  
-            int height = 300; 
-            Bitmap bitmap = new Bitmap(width, height);
-
-            using (Graphics g = Graphics.FromImage(bitmap))
-            {
-                for (int y = 0; y < height; y++)
-                {
-                    double value = (double)y / (height - 1);
-
-                    Color color = GetSmoothColor(value);
-
-                    using (Pen pen = new Pen(color))
+                    if (double.TryParse(values[i], out double val))
                     {
-                        g.DrawLine(pen, 0, height - y, width, height - y);
+                        matrix[row, col] = val;
                     }
                 }
-            }
 
-            pictureBox1.Image = bitmap;
+                return matrix;
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Error parsing matrix: {ex.Message}");
+                return null;
+            }
         }
 
-        private Color GetSmoothColor(double value)
+        private void UpdateContourPlots(List<double[,]> matrices)
         {
-            Color[] colors = new Color[]
+            // 确保在UI线程上执行
+            if (this.InvokeRequired)
             {
-                Color.Red,       
-                Color.Orange,    
-                Color.Yellow,    
-                Color.Green,     
-                Color.Blue
+                this.Invoke(new Action(() => UpdateContourPlots(matrices)));
+                return;
+            }
+
+            // 更新每个PlotView
+            for (int i = 0; i < Math.Min(matrices.Count, plotViews.Count); i++)
+            {
+                plotViews[i].Model = CreatePlotModel(matrices[i], $"Matrix {i + 1}");
+                plotViews[i].InvalidatePlot(true);
+            }
+        }
+
+        private PlotModel CreatePlotModel(double[,] data, string title)
+        {
+            var model = new PlotModel { Title = title };
+            int rows = data.GetLength(0);
+            int cols = data.GetLength(1);
+
+            var heatMap = new HeatMapSeries
+            {
+                X0 = 0,
+                X1 = cols - 1,
+                Y0 = 0,
+                Y1 = rows - 1,
+                Interpolate = true,
+                Data = data,
+                ColorAxisKey = "ColorAxis"
             };
 
-            double[] positions = new double[]
+            var contourSeries = new ContourSeries
             {
-                0.0,  
-                0.25,  
-                0.5,  
-                0.75,  
-                1.0   
+                Data = data,
+                ColumnCoordinates = Enumerable.Range(0, cols).Select(i => (double)i).ToArray(),
+                RowCoordinates = Enumerable.Range(0, rows).Select(i => (double)i).ToArray(),
+                ContourLevels = new double[] { 0.2, 0.4, 0.6, 0.8 },
+                LabelBackground = OxyColors.White
             };
 
-            for (int i = 0; i < positions.Length - 1; i++)
+            var colorAxis = new LinearColorAxis
             {
-                if (value >= positions[i] && value <= positions[i + 1])
+                Position = AxisPosition.Right,
+                Palette = OxyPalettes.Jet(256),
+                Key = "ColorAxis"
+            };
+
+            model.Axes.Add(new LinearAxis { Position = AxisPosition.Bottom, Minimum = 0, Maximum = cols - 1 });
+            model.Axes.Add(new LinearAxis { Position = AxisPosition.Left, Minimum = 0, Maximum = rows - 1 });
+            model.Axes.Add(colorAxis);
+            model.Series.Add(heatMap);
+            model.Series.Add(contourSeries);
+
+            return model;
+        }
+
+        private void UpdateObservationInfo(string info)
+        {
+            // 提取关键信息并显示
+            string[] parts = info.Split('|');
+            if (parts.Length >= 3)
+            {
+                string design = parts[0].Trim();
+                string iteration = parts[1].Trim();
+                string costAndActions = parts[2].Trim();
+
+                //// 在某个标签控件上显示这些信息
+                //if (lblObservationInfo != null && lblObservationInfo.InvokeRequired)
+                //{
+                //    lblObservationInfo.Invoke(new Action(() =>
+                //    {
+                //        lblObservationInfo.Text = $"{design} | Iteration: {iteration} | {costAndActions}";
+                //    }));
+                //}
+                //else if (lblObservationInfo != null)
+                //{
+                //    lblObservationInfo.Text = $"{design} | Iteration: {iteration} | {costAndActions}";
+                //}
+            }
+        }
+
+        private void UpdateGraph()
+        {
+            string currentFilePath = Assembly.GetExecutingAssembly().Location;
+            Console.WriteLine("Current File Path: " + currentFilePath);
+
+            DirectoryInfo currentDirectory = new DirectoryInfo(Path.GetDirectoryName(currentFilePath));
+            DirectoryInfo projectDirectory = currentDirectory.Parent.Parent.Parent.Parent;
+            Console.WriteLine("Project Directory Path: " + projectDirectory.FullName);
+
+            string relativePath = @"pythonAPI\vfl_marl_version1.0\update_graph2.py";
+            string updateGraphScriptPath = Path.Combine(projectDirectory.FullName, relativePath);
+
+            if (File.Exists(updateGraphScriptPath))
+            {
+                // Split the bestParameters string into individual values
+                //string[] parametersArray = bestParameters.Replace("[", "").Replace("]", "").Split(',');
+
+                //// Trim and convert each parameter to string
+                //for (int i = 0; i < parametersArray.Length; i++)
+                //{
+                //    parametersArray[i] = parametersArray[i].Trim();
+                //}
+                // Construct the arguments string with individual parameters
+                string pythonPath = Path.Combine(projectDirectory.FullName, @"TeamVFL_Project_Prototype\bin\x64\Release\common\python39\python.exe");
+                string scriptPath = $"\"{updateGraphScriptPath}\"";
+                //string arguments = $"{parametersArray[0]} {parametersArray[1]} {parametersArray[2]} {parametersArray[3]} {parametersArray[4]} {parametersArray[5]}";
+                PyObject output = ExecutePythonScriptObject(scriptPath);
+                Console.WriteLine(output.ToString());
+                cleanedJson = output.ToString().Replace("None", "null").Replace("True", "true"); ;
+                Console.WriteLine(cleanedJson);
+                // Accessing component values
+                ProcessJsonResponse(cleanedJson);
+                Optimized = true;
+
+            }
+            else
+            {
+                Console.WriteLine("update_graph2.py not found!");
+            }
+        }
+
+        private PyObject ExecutePythonScriptObject(string scriptName)
+        {
+            string currentFilePath = Assembly.GetExecutingAssembly().Location;
+            Console.WriteLine("Current File Path: " + currentFilePath);
+            DirectoryInfo currentDirectory = new DirectoryInfo(Path.GetDirectoryName(currentFilePath));
+            DirectoryInfo projectDirectory = currentDirectory.Parent.Parent.Parent.Parent;
+            Console.WriteLine("Project Directory Path: " + projectDirectory.FullName);
+            string relativePath = @"TeamVFL_Project_Prototype\bin\x64\Release\common\python39\python.exe";
+            ProcessStartInfo startInfo = new ProcessStartInfo
+            {
+                FileName = Path.Combine(projectDirectory.FullName, relativePath),
+                Arguments = $"{scriptName} ",
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                CreateNoWindow = true
+            };
+
+            using (Process process = Process.Start(startInfo))
+            {
+                using (StreamReader reader = process.StandardOutput)
                 {
-                    double t = (value - positions[i]) / (positions[i + 1] - positions[i]);
-                    return InterpolateColor(colors[i], colors[i + 1], t);
+                    dynamic result = reader.ReadToEnd();
+                    process.WaitForExit();
+                    // Return a PyObject instead of a string
+                    return new PyString(result);
                 }
             }
-
-            return colors[colors.Length - 1]; 
         }
-        private Color InterpolateColor(Color color1, Color color2, double t)
+
+        private void ProcessJsonResponse(string jsonResponseString)
         {
-            int r = (int)(color1.R + t * (color2.R - color1.R));
-            int g = (int)(color1.G + t * (color2.G - color1.G));
-            int b = (int)(color1.B + t * (color2.B - color1.B));
-            return Color.FromArgb(r, g, b);
+            // Change python json output to dynamic object
+            dynamic jsonResponse = JsonConvert.DeserializeObject(jsonResponseString, new JsonSerializerSettings
+            {
+                FloatParseHandling = FloatParseHandling.Double,
+                NullValueHandling = NullValueHandling.Ignore
+            });
+
+            // Get S11 Data
+            dynamic s11Data = jsonResponse.SimulationResult.Response1.Series.Series1;
+            double[] s11DataX = s11Data.DataX.ToObject<double[]>();
+            double[] s11DataY = s11Data.DataY.ToObject<double[]>();
+
+            // Get S12 Data
+            dynamic s12Data = jsonResponse.SimulationResult.Response1.Series.Series2;
+            double[] s12DataX = s12Data.DataX.ToObject<double[]>();
+            double[] s12DataY = s12Data.DataY.ToObject<double[]>();
+
+            // Get S21 Data
+            dynamic s21Data = jsonResponse.SimulationResult.Response1.Series.Series3;
+            double[] s21DataX = s21Data.DataX.ToObject<double[]>();
+            double[] s21DataY = s21Data.DataY.ToObject<double[]>();
+
+            // Get S22 Data
+            dynamic s22Data = jsonResponse.SimulationResult.Response1.Series.Series4;
+            double[] s22DataX = s22Data.DataX.ToObject<double[]>();
+            double[] s22DataY = s22Data.DataY.ToObject<double[]>();
+
+            // Create OxyPlot chart
+            plotModel = new PlotModel { Title = "S-Parameters" };
+
+            s11Series = CreateLineSeries(s11DataX, s11DataY, OxyColor.FromRgb(0, 0, 255));
+            s12Series = CreateLineSeries(s12DataX, s12DataY, OxyColor.FromRgb(255, 0, 0));
+            s21Series = CreateLineSeries(s21DataX, s21DataY, OxyColor.FromRgb(0, 255, 0));
+            s22Series = CreateLineSeries(s22DataX, s22DataY, OxyColor.FromRgb(255, 255, 0));
+
+            ToggleSeriesVisibility(s11Series, checkboxS11.Checked);
+            ToggleSeriesVisibility(s12Series, checkboxS12.Checked);
+            ToggleSeriesVisibility(s21Series, checkboxS21.Checked);
+            ToggleSeriesVisibility(s22Series, checkboxS22.Checked);
+            plotModel.Axes.Clear();
+            plotModel.Axes.Add(new OxyPlot.Axes.LinearAxis
+            {
+                Position = OxyPlot.Axes.AxisPosition.Bottom,
+                Title = "Frequency",
+                Unit = "GHz",
+                MajorGridlineStyle = OxyPlot.LineStyle.Solid,
+                MinorGridlineStyle = OxyPlot.LineStyle.Dot,
+                Key = "FrequencyAxis"
+            });
+            plotModel.Axes.Add(new OxyPlot.Axes.LinearAxis
+            {
+                Position = AxisPosition.Left,
+                MajorGridlineStyle = OxyPlot.LineStyle.Solid,
+                MinorGridlineStyle = OxyPlot.LineStyle.Dot,
+                Title = "dB"
+            });
+
+            var g0Line = new LineAnnotation
+            {
+                Type = LineAnnotationType.Horizontal,
+                Y = Convert.ToDouble(-18.0),
+                Color = OxyColor.FromRgb(0, 255, 0),
+                LineStyle = OxyPlot.LineStyle.DashDot
+            };
+            g0Line.MinimumX = Convert.ToDouble(1.429);
+            g0Line.MaximumX = Convert.ToDouble(1.512);
+            plotModel.Annotations.Add(g0Line);
+
+
+            var g0Label = new TextAnnotation
+            {
+                Text = "g0",
+                TextPosition = new DataPoint((g0Line.MinimumX + g0Line.MaximumX) / 2, g0Line.Y),
+                TextVerticalAlignment = OxyPlot.VerticalAlignment.Bottom,
+                TextHorizontalAlignment = OxyPlot.HorizontalAlignment.Center,
+                TextColor = OxyColor.FromRgb(0, 255, 0),
+                StrokeThickness = 0
+            };
+            plotModel.Annotations.Add(g0Label);
+
+
+            var g1Line = new LineAnnotation
+            {
+                Type = LineAnnotationType.Horizontal,
+                Y = Convert.ToDouble(-25),
+                Color = OxyColor.FromRgb(255, 0, 0),
+                LineStyle = OxyPlot.LineStyle.DashDot
+            };
+            g1Line.MinimumX = Convert.ToDouble(1.3);
+            g1Line.MaximumX = Convert.ToDouble(1.42);
+            plotModel.Annotations.Add(g1Line);
+            var g1Label = new TextAnnotation
+            {
+                Text = "g1",
+                TextPosition = new DataPoint((g1Line.MinimumX + g1Line.MaximumX) / 2, g1Line.Y),
+                TextVerticalAlignment = OxyPlot.VerticalAlignment.Bottom,
+                TextHorizontalAlignment = OxyPlot.HorizontalAlignment.Center,
+                TextColor = OxyColor.FromRgb(255, 0, 0),
+                StrokeThickness = 0
+            };
+            plotModel.Annotations.Add(g1Label);
+
+
+            var g2Line = new LineAnnotation
+            {
+                Type = LineAnnotationType.Horizontal,
+                Y = Convert.ToDouble(-25),
+                Color = OxyColor.FromRgb(255, 0, 0),
+                LineStyle = OxyPlot.LineStyle.DashDot
+            };
+            g2Line.MinimumX = Convert.ToDouble(1.525);
+            g2Line.MaximumX = Convert.ToDouble(1.65);
+            plotModel.Annotations.Add(g2Line);
+
+            var g2Label = new TextAnnotation
+            {
+                Text = "g2",
+                TextPosition = new DataPoint((g2Line.MinimumX + g2Line.MaximumX) / 2, g2Line.Y),
+                TextVerticalAlignment = OxyPlot.VerticalAlignment.Bottom,
+                TextHorizontalAlignment = OxyPlot.HorizontalAlignment.Center,
+                TextColor = OxyColor.FromRgb(255, 0, 0),
+                StrokeThickness = 0
+            };
+            plotModel.Annotations.Add(g2Label);
+
+            // Clear previous content in plotPanel
+            plotPanel.Controls.Clear();
+
+            // Create a PlotView to display the plot model
+            var plotView = new OxyPlot.WindowsForms.PlotView
+            {
+                Model = plotModel,
+                Dock = DockStyle.Fill // Dock the plotView to fill the form
+            };
+
+            // Add the PlotView to your form (assuming you have a panel named plotPanel)
+            plotPanel.Controls.Add(plotView);
         }
-
-
-
-        //private void SetupTimer()
-        //{
-        //    updateTimer = new System.Windows.Forms.Timer();
-        //    updateTimer.Interval = 100; // 更新间隔(毫秒)
-        //    updateTimer.Tick += UpdateTimer_Tick;
-        //    updateTimer.Start();
-        //}
-
-        //private void UpdateTimer_Tick(object sender, EventArgs e)
-        //{
-        //    // 更新数据
-        //    for (int i = 0; i < dataPoints; i++)
-        //    {
-        //        for (int j = 0; j < dataPoints; j++)
-        //        {
-        //            double time = DateTime.Now.Millisecond / 1000.0;
-        //            intensities[i, j] = Math.Sin(i * 0.2 + time) * Math.Cos(j * 0.2 + time)
-        //                              + rand.NextDouble() * 0.1;
-        //        }
-        //    }
-
-        //    // 更新热图
-        //    var hm = formsPlot2.Plot.AddHeatmap(intensities);
-
-
-        //    // 刷新显示
-        //    formsPlot2.Refresh();
-        //}
 
     }
 }

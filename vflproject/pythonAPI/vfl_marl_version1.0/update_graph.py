@@ -50,6 +50,7 @@ if __name__ == "__main__":
     #     sys.exit(1)
 
     # Parse arguments
+    # c1,l1,c2,l2,c3,l3 = 5,5,5,5,5,5
     c1 = float(sys.argv[1])
     l1 = float(sys.argv[2])
     c2 = float(sys.argv[3])

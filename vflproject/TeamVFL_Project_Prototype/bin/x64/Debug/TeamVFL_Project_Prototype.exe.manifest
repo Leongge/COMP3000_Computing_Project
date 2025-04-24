@@ -102,26 +102,50 @@
     </dependentAssembly>
   </dependency>
   <dependency>
-    <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="OxyPlot.dll" size="676864">
-      <assemblyIdentity name="OxyPlot" version="2.1.2.0" publicKeyToken="638079A8F0BD61E9" language="neutral" processorArchitecture="msil" />
+    <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="OxyPlot.dll" size="700928">
+      <assemblyIdentity name="OxyPlot" version="2.2.0.0" publicKeyToken="638079A8F0BD61E9" language="neutral" processorArchitecture="msil" />
       <hash>
         <dsig:Transforms>
           <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
         </dsig:Transforms>
         <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
-        <dsig:DigestValue>diihWV0Mqr4KKgQgeepT4VYIr0kJbBdaHV5/k/wOqPg=</dsig:DigestValue>
+        <dsig:DigestValue>2nZ+PYwQZ05v+nJnCVLRJ0VEtFO2jndLKfA7UWCkoDQ=</dsig:DigestValue>
       </hash>
     </dependentAssembly>
   </dependency>
   <dependency>
-    <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="OxyPlot.WindowsForms.dll" size="32256">
-      <assemblyIdentity name="OxyPlot.WindowsForms" version="2.1.2.0" publicKeyToken="245EACD6B5D2D338" language="neutral" processorArchitecture="msil" />
+    <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="OxyPlot.WindowsForms.dll" size="32768">
+      <assemblyIdentity name="OxyPlot.WindowsForms" version="2.2.0.0" publicKeyToken="245EACD6B5D2D338" language="neutral" processorArchitecture="msil" />
       <hash>
         <dsig:Transforms>
           <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
         </dsig:Transforms>
         <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
-        <dsig:DigestValue>V7uX3TBT2YSUkHIbLh9nHigGLFtBbUXo1Ef4GA3KGe0=</dsig:DigestValue>
+        <dsig:DigestValue>B1i4pMEpcw5FhecX1Bg9SLEWenjklVznBNnmzCBBSLI=</dsig:DigestValue>
+      </hash>
+    </dependentAssembly>
+  </dependency>
+  <dependency>
+    <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="OxyPlot.Wpf.dll" size="37376">
+      <assemblyIdentity name="OxyPlot.Wpf" version="2.2.0.0" publicKeyToken="75E952BA404CDBB0" language="neutral" processorArchitecture="msil" />
+      <hash>
+        <dsig:Transforms>
+          <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
+        </dsig:Transforms>
+        <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
+        <dsig:DigestValue>UM2uATwFuLoPaO2y3IoXO5PuXiFM0m5XLW/VOYKUfFY=</dsig:DigestValue>
+      </hash>
+    </dependentAssembly>
+  </dependency>
+  <dependency>
+    <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="OxyPlot.Wpf.Shared.dll" size="41472">
+      <assemblyIdentity name="OxyPlot.Wpf.Shared" version="2.2.0.0" publicKeyToken="75E952BA404CDBB0" language="neutral" processorArchitecture="msil" />
+      <hash>
+        <dsig:Transforms>
+          <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
+        </dsig:Transforms>
+        <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
+        <dsig:DigestValue>XUNhcHcSMGfLyTZtzoZNQVuzah97+o77fkCuTPt5vz4=</dsig:DigestValue>
       </hash>
     </dependentAssembly>
   </dependency>
@@ -306,14 +330,14 @@
     </dependentAssembly>
   </dependency>
   <dependency>
-    <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="TeamVFL_Project_Prototype.exe" size="57856">
+    <dependentAssembly dependencyType="install" allowDelayedBinding="true" codebase="TeamVFL_Project_Prototype.exe" size="80384">
       <assemblyIdentity name="TeamVFL_Project_Prototype" version="1.0.0.0" language="neutral" processorArchitecture="amd64" />
       <hash>
         <dsig:Transforms>
           <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
         </dsig:Transforms>
         <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
-        <dsig:DigestValue>yubju4t+TycYlIm+0PixoTEyjxOgPIwuhxchYV/7sNo=</dsig:DigestValue>
+        <dsig:DigestValue>RIHplzaSdaF2V8QTz6OalULSet28CO6z8DOzDtouZYI=</dsig:DigestValue>
       </hash>
     </dependentAssembly>
   </dependency>
@@ -407,13 +431,13 @@
       <dsig:DigestValue>QrBCRujwivY1mpkoIVtW245sK/4BGzANqEUXXJiJjsg=</dsig:DigestValue>
     </hash>
   </file>
-  <file name="TeamVFL_Project_Prototype.exe.config" size="581">
+  <file name="TeamVFL_Project_Prototype.exe.config" size="844">
     <hash>
       <dsig:Transforms>
         <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
       </dsig:Transforms>
       <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
-      <dsig:DigestValue>SV+mgiFoMk9YHRCGHAj8W918nrfNnb/PqwzQYFCiuAs=</dsig:DigestValue>
+      <dsig:DigestValue>5bpNS5sdRZ1BigyB4Wm0OFQe1CLzMINO1UTzrUWIqTQ=</dsig:DigestValue>
     </hash>
   </file>
   <file name="x64\libHarfBuzzSharp.dll" size="1607208">

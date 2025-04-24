@@ -7,14 +7,14 @@
     <framework targetVersion="4.7.2" profile="Full" supportedRuntime="4.0.30319" />
   </compatibleFrameworks>
   <dependency>
-    <dependentAssembly dependencyType="install" codebase="TeamVFL_Project_Prototype.exe.manifest" size="25092">
+    <dependentAssembly dependencyType="install" codebase="TeamVFL_Project_Prototype.exe.manifest" size="26454">
       <assemblyIdentity name="TeamVFL_Project_Prototype.exe" version="1.0.0.6" publicKeyToken="0000000000000000" language="neutral" processorArchitecture="amd64" type="win32" />
       <hash>
         <dsig:Transforms>
           <dsig:Transform Algorithm="urn:schemas-microsoft-com:HashTransforms.Identity" />
         </dsig:Transforms>
         <dsig:DigestMethod Algorithm="http://www.w3.org/2000/09/xmldsig#sha256" />
-        <dsig:DigestValue>nIB3QkEZ8ZjWwR9/uch01wS3UguoN0ooJmX6T71aDGY=</dsig:DigestValue>
+        <dsig:DigestValue>S/GSP2xxvJbAF0/48FSnk7Bi45sTEEy2blK9yBvH4no=</dsig:DigestValue>
       </hash>
     </dependentAssembly>
   </dependency>
